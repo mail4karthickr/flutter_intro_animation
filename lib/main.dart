@@ -15,13 +15,8 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  return MaterialApp(
-    theme: ThemeData(brightness: Brightness.dark),
-    darkTheme: ThemeData(brightness: Brightness.dark),
-    themeMode: ThemeMode.dark,
-    debugShowCheckedModeBanner: false,
-    debugShowMaterialGrid: false,
-    home: const HomePage(),
+  return const MaterialApp(
+    home: HomePage(),
   );
   }
 }

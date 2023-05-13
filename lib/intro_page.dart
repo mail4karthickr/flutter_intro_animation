@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:uuid/uuid.dart';
 
+import 'custom_indicator_widget.dart';
+import 'custom_text_field.dart';
+
 class PageIntro {
   String id = const Uuid().v4();
   String introAssetImage;
@@ -121,6 +124,11 @@ class _IntroPageState extends State<IntroPage> with TickerProviderStateMixin {
 
   }
 
+  double getVisibleScreenHeight(BuildContext context) {
+    final MediaQueryData mediaQueryData = MediaQuery.of(context);
+    return mediaQueryData.size.height - mediaQueryData.padding.top - mediaQueryData.padding.bottom;
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -137,44 +145,55 @@ class _IntroPageState extends State<IntroPage> with TickerProviderStateMixin {
           opacity: _hideWholeViewOpacityAnimation,
           child: Padding(
             padding: const EdgeInsets.all(15),
-            child: Column(
-              children: [
-                Expanded(
-                  child: FadeTransition(
-                    opacity: _opacityAnimation,
-                    child: SlideTransition(
-                      position: _slideFromTop,
-                      child: Container(
-                        child: AspectRatio(
-                          aspectRatio: 1,
-                          child: Image.asset(
-                            'assets/images/${pageIntro.introAssetImage}.png',
+            child: SingleChildScrollView(
+              child: Column(
+                    children: [
+                      SizedBox(
+                        height: getVisibleScreenHeight(context) * 0.5,
+                        child: Stack(
+                          children: [
+                            FadeTransition(
+                              opacity: _opacityAnimation,
+                              child: SlideTransition(
+                                position: _slideFromTop,
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(15.0),
+                                    child: Image.asset(
+                                      'assets/images/${pageIntro.introAssetImage}.png',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (pageIntro != pageIntros.first)
+                              IconButton(
+                                padding: const EdgeInsets.all(5),
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.chevron_left),
+                                iconSize: 35,
+                                onPressed: () {
+                                    updatePageIntro(isPrevious: true);
+                                }
+                              ),
+                          ],
+                        ),
+                      ),
+                      FadeTransition(
+                        opacity: _opacityAnimation,
+                        child: SlideTransition(
+                          position: _slideFromBottom,
+                          child: BottomWidget(
+                            intro: pageIntro, 
+                            nextPressed: () {
+                               updatePageIntro();
+                            }
                           ),
                         ),
-                        ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: FadeTransition(
-                    opacity: _opacityAnimation,
-                    child: SlideTransition(
-                      position: _slideFromBottom,
-                      child: BottomWidget(
-                        intro: pageIntro, 
-                        nextPressed: () {
-                          _wholeViewAnimationController.animateWith(wholeViewSpringSimulation);
-                          Future.delayed(const Duration(milliseconds: 600), () {
-                              updatePageIntro();
-                             _wholeViewAnimationController.reset();
-                            _controller..reset()..animateWith(springSimulation);
-                          });
-                        }
                       ),
-                    ),
-                  )
-                ),
-              ],
+                    ],
+                  ),
             ),
           ),
         ),
@@ -183,27 +202,31 @@ class _IntroPageState extends State<IntroPage> with TickerProviderStateMixin {
   }
 
   updatePageIntro({bool isPrevious = false}) {
-     final currentPageIndex = pageIntros.indexOf(pageIntro);
-
-     //Page intro object not founc
-     if (currentPageIndex == -1) {
-      setState(() {
-        pageIntro = pageIntros[0];
-      });
-     }
-     if (isPrevious && currentPageIndex != 0) {
-      setState(() {
-        pageIntro = pageIntros[currentPageIndex - 1];
-      });
-     } else if(!isPrevious && currentPageIndex != pageIntros.length - 1) {
-      setState(() {
-        pageIntro = pageIntros[currentPageIndex + 1];
-      });
-     } else {
-      setState(() {
-        pageIntro = pageIntros[0];
-      });
-     }
+    _wholeViewAnimationController.animateWith(wholeViewSpringSimulation);
+    Future.delayed(const Duration(milliseconds: 600), () {
+      final currentPageIndex = pageIntros.indexOf(pageIntro);
+      //Page intro object not founc
+      if (currentPageIndex == -1) {
+        setState(() {
+          pageIntro = pageIntros[0];
+        });
+      }
+      if (isPrevious && currentPageIndex != 0) {
+        setState(() {
+          pageIntro = pageIntros[currentPageIndex - 1];
+        });
+      } else if(!isPrevious && currentPageIndex != pageIntros.length - 1) {
+        setState(() {
+          pageIntro = pageIntros[currentPageIndex + 1];
+        });
+      } else {
+        setState(() {
+          pageIntro = pageIntros[0];
+        });
+      }
+      _wholeViewAnimationController.reset();
+      _controller..reset()..animateWith(springSimulation);
+    });
   }
 }
 
@@ -215,14 +238,90 @@ class BottomWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Text(intro.title, style: const TextStyle(fontSize: 40), textAlign: TextAlign.center),
-      const SizedBox(height: 15),
-      Text(intro.subTitle, style: const TextStyle(fontSize: 20), textAlign: TextAlign.center),
-      TextButton(
-        onPressed: nextPressed, 
-        child: const Text("Next")
-      ) 
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(intro.title, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 15),
+        Text(intro.subTitle, style: const TextStyle(fontSize: 20)),
+        !intro.displaysAction ? nextAction() : const Login()
     ]);
   }
+
+  Widget nextAction() {
+    return Column(children: [
+      const SizedBox(height: 60),
+      CustomIndicator(
+        totalPages: pageIntros.where((element) => !element.displaysAction).length, 
+        currentPage: pageIntros.indexOf(intro) 
+      ),
+      const SizedBox(height: 60),
+      Center(child: button(title: "Next", widthFactor: 0.4, onPressed: () {
+        nextPressed();
+      }))
+    ]); 
+  }
 }
+
+class Login extends StatelessWidget {
+  final _email = "";
+  final _password = "";
+  
+  const Login({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+  children: [
+    CustomTextField(
+    text: _email,
+    hint: "Email Address",
+    leadingIcon: const Icon(Icons.email), 
+    onChanged: (String value) {  },
+    ),
+    CustomTextField(
+    text: _password,
+    hint: "Password",
+    leadingIcon: const Icon(Icons.lock),
+    isPassword: true, 
+    onChanged: (String value) {  },
+    ),
+    const SizedBox(height: 10),
+    button(title: "Continue", widthFactor: 1, onPressed: () {})
+  ],
+);
+  }
+}
+
+
+  Widget button({required String title, required double widthFactor, required VoidCallback onPressed}) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return ElevatedButton(
+          onPressed: onPressed,
+          style: ButtonStyle(
+            backgroundColor: MaterialStateProperty.all<Color>(Colors.black),
+            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
+          ),
+          child: Container(
+            width: constraints.maxWidth * widthFactor,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            child: Center(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ),
+      );
+    }
+  );
+  }
